@@ -1,0 +1,70 @@
+{% extends 'loans/base.html' %}
+
+{% block title %}Transaction Statement{% endblock %}
+
+{% block content %}
+    <h2>View Transactions & Dues</h2>
+
+    <form id="statementForm">
+        <input type="text" id="user_name" name="user_name" placeholder="Enter User Name" required>
+        <button type="submit">Get Statement</button>
+    </form>
+
+    <div id="statementResult"></div>
+
+    <script>
+        document.getElementById("statementForm").addEventListener("submit", function(event) {
+            event.preventDefault(); // Prevent page reload
+
+            let userName = document.getElementById("user_name").value.trim();  // ✅ Fetch name
+            let resultDiv = document.getElementById("statementResult");
+
+            console.log("📌 Sending user_name:", userName);  // ✅ Log before sending
+
+            fetch("{% url 'get-statement-view' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": "{{ csrf_token }}"  // ✅ Required for Django POST requests
+                },
+                body: JSON.stringify({ user_name: userName })  // ✅ Send user name instead of UUID
+            })
+            .then(response => response.json().then(data => ({ status: response.status, body: data })))
+            .then(result => {
+                console.log("✅ Response Status:", result.status);
+                console.log("✅ Response Data:", result.body);
+
+                if (result.status !== 200) {
+                    resultDiv.innerHTML = `<p style="color: red;">${result.body.error || "Unexpected error occurred."}</p>`;
+                    return;
+                }
+
+                let transactionsHTML = `<h3>Past Transactions</h3><ul>`;
+                result.body.past_transactions.forEach(transaction => {
+                    transactionsHTML += `<li>Date: ${transaction.date}, Amount Paid: ₹${transaction.amount_paid}</li>`;
+                });
+                transactionsHTML += `</ul>`;
+
+                let upcomingHTML = `<h3>Upcoming Transactions</h3><ul>`;
+                result.body.upcoming_transactions.forEach(due => {
+                    upcomingHTML += `<li>Date: ${due.date}, Amount Due: ₹${due.amount_due}</li>`;
+                });
+                upcomingHTML += `</ul>`;
+
+                resultDiv.innerHTML = `
+                    <p><strong>Loan ID:</strong> ${result.body.loan_id}</p>
+                    <p><strong>Loan Amount:</strong> ₹${result.body.loan_amount}</p>
+                    <p><strong>Interest Rate:</strong> ${result.body.interest_rate}%</p>
+                    <p><strong>Repayment Period:</strong> ${result.body.term_period} months</p>
+                    ${transactionsHTML}
+                    ${upcomingHTML}
+                `;
+            })
+            .catch(error => {
+                console.error("❌ Fetch Error:", error);
+                resultDiv.innerHTML = `<p style="color: red;">Error fetching statement. Check console for details.</p>`;
+            });
+        });
+    </script>
+    
+{% endblock %}

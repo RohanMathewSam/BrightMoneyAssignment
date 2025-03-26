@@ -1,0 +1,50 @@
+{% extends 'loans/base.html' %}
+
+{% block title %}Make Payment{% endblock %}
+
+{% block content %}
+    <h2>Make Payment</h2>
+    <form method="POST" action="{% url 'make-payment' %}">
+        {% csrf_token %}
+        
+        <label for="user_name">User Name:</label>
+        <input type="text" id="user_name" name="user_name" placeholder="Enter User Name" required>
+
+        <button type="button" onclick="fetchLoanDetails()">Fetch Amount</button>  <!-- ✅ Fetch Loan Amount -->
+
+        <label for="amount">Amount to Pay:</label>
+        <input type="number" id="amount" name="amount" readonly>  <!-- ✅ Non-editable -->
+
+        <button type="submit">Pay</button>
+    </form>
+
+    <script>
+        function fetchLoanDetails() {
+            let userName = document.getElementById("user_name").value.trim();
+
+            if (!userName) {
+                alert("Please enter a user name first.");
+                return;
+            }
+
+            fetch("{% url 'fetch-loan-amount' %}", {  // ✅ New API to get loan amount
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": "{{ csrf_token }}"
+                },
+                body: JSON.stringify({ user_name: userName })  // ✅ Send user name
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    document.getElementById("amount").value = data.total_due;  // ✅ Auto-fill amount
+                }
+            })
+            .catch(error => console.error("Error fetching loan details:", error));
+        }
+    </script>
+
+{% endblock %}
